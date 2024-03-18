@@ -19,3 +19,21 @@
 
 # Go workspace file
 go.work
+
+*.log
+
+*.zip
+*.tar.gz
+*.rar
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### VS Code ###
+.vscode/
+
+*.db
+db/*
