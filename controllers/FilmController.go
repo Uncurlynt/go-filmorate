@@ -4,26 +4,19 @@ import (
 	"encoding/json"
 	"github.com/go-playground/validator"
 	"github.com/gorilla/mux"
+	"go-filmorate/model"
 	"go-filmorate/types"
 	"log"
 	"net/http"
 	"time"
 )
 
-type Film struct {
-	ID          int              `json:"id"`
-	Name        string           `json:"name" validate:"required"`
-	Description string           `json:"description" validate:"required,lte=200"`
-	ReleaseDate types.CustomTime `json:"releaseDate" validate:"required"`
-	Duration    int              `json:"duration" validate:"required,gt=0"`
-}
-
-var films = make(map[int]Film)
+var films = make(map[int]model.Film)
 
 // GET films
 func GetFilms(w http.ResponseWriter, r *http.Request) {
 	log.Println("Gets all films")
-	values := []Film{}
+	values := []model.Film{}
 	for _, v := range films {
 		values = append(values, v)
 	}
@@ -42,7 +35,7 @@ func GetFilmsByID(w http.ResponseWriter, r *http.Request) {
 // POST films
 func AddFilms(w http.ResponseWriter, r *http.Request) {
 
-	film := Film{}
+	film := model.Film{}
 	json.NewDecoder(r.Body).Decode(&film)
 	film.ID = IncreaseCounterFilmId()
 	validate := validator.New()
@@ -79,7 +72,7 @@ func AddFilms(w http.ResponseWriter, r *http.Request) {
 
 // PUT films
 func UpdateFilms(w http.ResponseWriter, r *http.Request) {
-	film := Film{}
+	film := model.Film{}
 	log.Println("Update film by id = ", film.ID)
 	json.NewDecoder(r.Body).Decode(&film)
 
