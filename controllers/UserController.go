@@ -5,35 +5,20 @@ import (
 	"fmt"
 	"github.com/go-playground/validator"
 	"github.com/gorilla/mux"
+	"go-filmorate/model"
+	"go-filmorate/types"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 )
 
-type User struct {
-	ID       int        `json:"id"`
-	Email    string     `json:"email" validate:"required,email"`
-	Login    string     `json:"login" validate:"required,validLogin"`
-	Name     string     `json:"name"`
-	Birthday CustomTime `json:"birthday"`
-}
-
-type CustomTime struct {
-	time.Time
-}
-
-type ResponseError struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
-}
-
-var users = make(map[int]User)
+var users = make(map[int]model.User)
 
 // GetUsers GET users /users
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	log.Println("Gets all users")
-	values := []User{}
+	values := []model.User{}
 	for _, v := range users {
 		values = append(values, v)
 	}
@@ -51,7 +36,7 @@ func GetUserById(w http.ResponseWriter, r *http.Request) {
 
 // AddUsers POST users /users + request body
 func AddUsers(w http.ResponseWriter, r *http.Request) {
-	user := User{}
+	user := model.User{}
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
 		return
@@ -69,7 +54,7 @@ func AddUsers(w http.ResponseWriter, r *http.Request) {
 
 	if user.Birthday.After(time.Now()) {
 		w.WriteHeader(http.StatusBadRequest)
-		responseError := ResponseError{}
+		responseError := types.ResponseError{}
 		responseError.Status = http.StatusBadRequest
 		responseError.Message = "Birthday cannot be in the future"
 		json.NewEncoder(w).Encode(responseError)
@@ -79,7 +64,7 @@ func AddUsers(w http.ResponseWriter, r *http.Request) {
 	err = validate.Struct(user)
 	if err = validate.Struct(user); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		responseError := ResponseError{}
+		responseError := types.ResponseError{}
 		responseError.Status = http.StatusBadRequest
 		responseError.Message = "Bad Request"
 		json.NewEncoder(w).Encode(responseError)
@@ -96,7 +81,7 @@ func AddUsers(w http.ResponseWriter, r *http.Request) {
 
 // UpdateUsers PUT users /users/{userId} (/users/1) + request body
 func UpdateUsers(w http.ResponseWriter, r *http.Request) {
-	user := User{}
+	user := model.User{}
 	log.Println("Update user by id = ", user.ID)
 	json.NewDecoder(r.Body).Decode(&user)
 
@@ -104,7 +89,7 @@ func UpdateUsers(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		log.Println("nil elem = ", val)
 		w.WriteHeader(http.StatusNotFound)
-		responseError := ResponseError{}
+		responseError := types.ResponseError{}
 		responseError.Status = http.StatusNotFound
 		responseError.Message = "User Not Found"
 		json.NewEncoder(w).Encode(responseError)
@@ -117,32 +102,6 @@ func UpdateUsers(w http.ResponseWriter, r *http.Request) {
 
 func IncreaseCounterUserId() int {
 	return len(users) + 1
-}
-
-func (t CustomTime) MarshalJSON() ([]byte, error) {
-	if t.IsZero() {
-		return []byte("null"), nil
-	} else {
-		return []byte(`"` + t.Format("2006-01-02") + `"`), nil
-	}
-}
-
-func (t *CustomTime) UnmarshalJSON(data []byte) error {
-	if string(data) == "null" {
-		t.Time = time.Time{}
-		return nil
-	}
-	var timeStr string
-	if err := json.Unmarshal(data, &timeStr); err != nil {
-		return err
-	}
-	log.Println("Unmarshalled time string:", timeStr)
-	parsedTime, err := time.Parse("2006-01-02", timeStr)
-	if err != nil {
-		return err
-	}
-	t.Time = parsedTime
-	return nil
 }
 
 func validLogin(fl validator.FieldLevel) bool {

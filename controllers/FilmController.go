@@ -4,17 +4,18 @@ import (
 	"encoding/json"
 	"github.com/go-playground/validator"
 	"github.com/gorilla/mux"
+	"go-filmorate/types"
 	"log"
 	"net/http"
 	"time"
 )
 
 type Film struct {
-	ID          int        `json:"id"`
-	Name        string     `json:"name" validate:"required"`
-	Description string     `json:"description" validate:"required,lte=200"`
-	ReleaseDate CustomTime `json:"releaseDate" validate:"required"`
-	Duration    int        `json:"duration" validate:"required,gt=0"`
+	ID          int              `json:"id"`
+	Name        string           `json:"name" validate:"required"`
+	Description string           `json:"description" validate:"required,lte=200"`
+	ReleaseDate types.CustomTime `json:"releaseDate" validate:"required"`
+	Duration    int              `json:"duration" validate:"required,gt=0"`
 }
 
 var films = make(map[int]Film)
@@ -53,7 +54,7 @@ func AddFilms(w http.ResponseWriter, r *http.Request) {
 
 	if film.ReleaseDate.Before(minDate) {
 		w.WriteHeader(http.StatusBadRequest)
-		responseError := ResponseError{}
+		responseError := types.ResponseError{}
 		responseError.Status = http.StatusBadRequest
 		responseError.Message = "Release date must be after 28 December 1895"
 		json.NewEncoder(w).Encode(responseError)
@@ -64,7 +65,7 @@ func AddFilms(w http.ResponseWriter, r *http.Request) {
 	if err = validate.Struct(film); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		//Лог тела функции
-		responseError := ResponseError{}
+		responseError := types.ResponseError{}
 		responseError.Status = http.StatusNotFound
 		responseError.Message = "User Not Found"
 		json.NewEncoder(w).Encode(responseError)
@@ -88,7 +89,7 @@ func UpdateFilms(w http.ResponseWriter, r *http.Request) {
 	if err = validate.Struct(film); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		//Лог тела функции
-		responseError := ResponseError{}
+		responseError := types.ResponseError{}
 		responseError.Status = http.StatusNotFound
 		responseError.Message = "User Not Found"
 		json.NewEncoder(w).Encode(responseError)
@@ -98,7 +99,7 @@ func UpdateFilms(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		log.Println("nil elem = ", val)
 		w.WriteHeader(http.StatusNotFound)
-		responseError := ResponseError{}
+		responseError := types.ResponseError{}
 		responseError.Status = http.StatusNotFound
 		responseError.Message = "Film Not Found"
 		json.NewEncoder(w).Encode(responseError)
