@@ -2,23 +2,23 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/go-playground/validator"
-	"github.com/gorilla/mux"
-	"go-filmorate/model"
-	"go-filmorate/types"
+	"go-filmorate/models"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/go-playground/validator"
+	"github.com/gorilla/mux"
 )
 
-var users = make(map[int]model.User)
+var users = make(map[int]models.User)
+var checkUser = true
 
 // GetUsers GET users /users
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	log.Println("Gets all users")
-	values := []model.User{}
+	values := []models.User{}
 	for _, v := range users {
 		values = append(values, v)
 	}
@@ -36,63 +36,40 @@ func GetUserById(w http.ResponseWriter, r *http.Request) {
 
 // AddUsers POST users /users + request body
 func AddUsers(w http.ResponseWriter, r *http.Request) {
-	user := model.User{}
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		return
-	}
+	user := models.User{}
+	json.NewDecoder(r.Body).Decode(&user)
 
 	log.Println("Birthday after JSON decoding:", user.Birthday)
 
 	validate := validator.New()
 	validate.RegisterValidation("validLogin", validLogin)
-	//validate.RegisterValidation("validBirthday", validBirthday)
 
+	//validateName(&user)
 	if user.Name == "" {
 		user.Name = user.Login
 	}
 
-	if user.Birthday.After(time.Now()) {
-		w.WriteHeader(http.StatusBadRequest)
-		responseError := types.ResponseError{}
-		responseError.Status = http.StatusBadRequest
-		responseError.Message = "Birthday cannot be in the future"
-		json.NewEncoder(w).Encode(responseError)
+	if !validateBirthday(&user, w) {
 		return
 	}
 
-	err = validate.Struct(user)
-	if err = validate.Struct(user); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		responseError := types.ResponseError{}
-		responseError.Status = http.StatusBadRequest
-		responseError.Message = "Bad Request"
-		json.NewEncoder(w).Encode(responseError)
+	if !validateEmail(&user, w) {
 		return
-	} else {
-		user.ID = IncreaseCounterUserId()
 	}
 
+	user.ID = IncreaseCounterUserId()
 	users[user.ID] = user
-
 	log.Println("Add user = ", user)
 	json.NewEncoder(w).Encode(user)
 }
 
 // UpdateUsers PUT users /users/{userId} (/users/1) + request body
 func UpdateUsers(w http.ResponseWriter, r *http.Request) {
-	user := model.User{}
+	user := models.User{}
 	log.Println("Update user by id = ", user.ID)
 	json.NewDecoder(r.Body).Decode(&user)
 
-	val, ok := users[user.ID]
-	if !ok {
-		log.Println("nil elem = ", val)
-		w.WriteHeader(http.StatusNotFound)
-		responseError := types.ResponseError{}
-		responseError.Status = http.StatusNotFound
-		responseError.Message = "User Not Found"
-		json.NewEncoder(w).Encode(responseError)
+	if !checkUserByID(&user, w) {
 		return
 	}
 
@@ -105,11 +82,56 @@ func IncreaseCounterUserId() int {
 }
 
 func validLogin(fl validator.FieldLevel) bool {
-	fmt.Println("Validating login...")
+	log.Println("Validating login...")
 
 	value := fl.Field().String()
 	value2 := " "
 	if strings.Contains(value, value2) {
+		checkUser = false
+		return false
+	}
+	checkUser = true
+	return true
+}
+
+func validateBirthday(user *models.User, w http.ResponseWriter) bool {
+
+	if user.Birthday.After(time.Now()) {
+		w.WriteHeader(http.StatusBadRequest)
+		responseError := models.ResponseError{}
+		responseError.Status = http.StatusBadRequest
+		responseError.Message = "Birthday cannot be in the future"
+		json.NewEncoder(w).Encode(responseError)
+		checkUser = false
+		return false
+	}
+	return true
+}
+
+func validateEmail(user *models.User, w http.ResponseWriter) bool {
+	validate := validator.New()
+	err := validate.Struct(user)
+	if err = validate.Struct(user); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		responseError := models.ResponseError{}
+		responseError.Status = http.StatusBadRequest
+		responseError.Message = "Bad Request"
+		json.NewEncoder(w).Encode(responseError)
+		//checkUser = false
+		return false
+	}
+	return true
+}
+
+func checkUserByID(user *models.User, w http.ResponseWriter) bool {
+	val, ok := users[user.ID]
+	if !ok {
+		log.Println("nil elem = ", val)
+		w.WriteHeader(http.StatusNotFound)
+		responseError := models.ResponseError{}
+		responseError.Status = http.StatusNotFound
+		responseError.Message = "User Not Found"
+		json.NewEncoder(w).Encode(responseError)
 		return false
 	}
 	return true
