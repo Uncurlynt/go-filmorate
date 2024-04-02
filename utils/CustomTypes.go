@@ -1,4 +1,4 @@
-package models
+package utils
 
 import (
 	"encoding/json"
@@ -8,11 +8,6 @@ import (
 
 type CustomTime struct {
 	time.Time
-}
-
-type ResponseError struct {
-	Status  int    `json:"status"`
-	Message string `json:"message"`
 }
 
 func (t CustomTime) MarshalJSON() ([]byte, error) {

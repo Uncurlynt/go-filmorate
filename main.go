@@ -21,7 +21,7 @@ func main() {
 	router.HandleFunc("/users", controllers.UpdateUsers).Methods("PUT")
 
 	router.HandleFunc("/films", controllers.GetFilms).Methods("GET")
-	router.HandleFunc("/film/{filmId}", controllers.GetFilmsByID).Methods("GET")
+	router.HandleFunc("/film/{filmId}", controllers.GetFilmById).Methods("GET")
 	router.HandleFunc("/films", controllers.AddFilms).Methods("POST")
 	router.HandleFunc("/films", controllers.UpdateFilms).Methods("PUT")
 

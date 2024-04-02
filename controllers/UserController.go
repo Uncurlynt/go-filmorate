@@ -2,9 +2,11 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"go-filmorate/models"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,9 +15,7 @@ import (
 )
 
 var users = make(map[int]models.User)
-var checkUser = true
 
-// GetUsers GET users /users
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	log.Println("Gets all users")
 	values := []models.User{}
@@ -26,15 +26,16 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(values)
 }
 
-// GetUserById GET users /users/{userId} (/users/1)
 func GetUserById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	userId := vars["userId"]
-	log.Println("Get user by id = ", userId)
-	json.NewEncoder(w).Encode(userId)
+	userId, err := strconv.Atoi(vars["userId"])
+	if err != nil {
+		panic(err)
+	}
+	log.Println("Get user by id = ", users[userId])
+	json.NewEncoder(w).Encode(users[userId])
 }
 
-// AddUsers POST users /users + request body
 func AddUsers(w http.ResponseWriter, r *http.Request) {
 	user := models.User{}
 	json.NewDecoder(r.Body).Decode(&user)
@@ -44,16 +45,15 @@ func AddUsers(w http.ResponseWriter, r *http.Request) {
 	validate := validator.New()
 	validate.RegisterValidation("validLogin", validLogin)
 
-	//validateName(&user)
 	if user.Name == "" {
 		user.Name = user.Login
 	}
 
-	if !validateBirthday(&user, w) {
+	if validateBirthday(&user, w) != nil {
 		return
 	}
 
-	if !validateEmail(&user, w) {
+	if validateEmail(&user, w) != nil {
 		return
 	}
 
@@ -63,13 +63,12 @@ func AddUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
-// UpdateUsers PUT users /users/{userId} (/users/1) + request body
 func UpdateUsers(w http.ResponseWriter, r *http.Request) {
 	user := models.User{}
 	log.Println("Update user by id = ", user.ID)
 	json.NewDecoder(r.Body).Decode(&user)
 
-	if !checkUserByID(&user, w) {
+	if checkUserByID(&user, w) != nil {
 		return
 	}
 
@@ -87,28 +86,24 @@ func validLogin(fl validator.FieldLevel) bool {
 	value := fl.Field().String()
 	value2 := " "
 	if strings.Contains(value, value2) {
-		checkUser = false
 		return false
 	}
-	checkUser = true
 	return true
 }
 
-func validateBirthday(user *models.User, w http.ResponseWriter) bool {
-
+func validateBirthday(user *models.User, w http.ResponseWriter) error {
 	if user.Birthday.After(time.Now()) {
 		w.WriteHeader(http.StatusBadRequest)
 		responseError := models.ResponseError{}
 		responseError.Status = http.StatusBadRequest
 		responseError.Message = "Birthday cannot be in the future"
 		json.NewEncoder(w).Encode(responseError)
-		checkUser = false
-		return false
+		return errors.New("Birthday cannot be in the future")
 	}
-	return true
+	return nil
 }
 
-func validateEmail(user *models.User, w http.ResponseWriter) bool {
+func validateEmail(user *models.User, w http.ResponseWriter) error {
 	validate := validator.New()
 	err := validate.Struct(user)
 	if err = validate.Struct(user); err != nil {
@@ -117,13 +112,12 @@ func validateEmail(user *models.User, w http.ResponseWriter) bool {
 		responseError.Status = http.StatusBadRequest
 		responseError.Message = "Bad Request"
 		json.NewEncoder(w).Encode(responseError)
-		//checkUser = false
-		return false
+		return errors.New("Bad Request")
 	}
-	return true
+	return nil
 }
 
-func checkUserByID(user *models.User, w http.ResponseWriter) bool {
+func checkUserByID(user *models.User, w http.ResponseWriter) error {
 	val, ok := users[user.ID]
 	if !ok {
 		log.Println("nil elem = ", val)
@@ -132,7 +126,7 @@ func checkUserByID(user *models.User, w http.ResponseWriter) bool {
 		responseError.Status = http.StatusNotFound
 		responseError.Message = "User Not Found"
 		json.NewEncoder(w).Encode(responseError)
-		return false
+		return errors.New("User Not Found")
 	}
-	return true
+	return nil
 }
