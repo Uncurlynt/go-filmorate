@@ -1,8 +1,9 @@
-package controllers
+package storagies
 
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/go-playground/validator"
 	"github.com/gorilla/mux"
 	"go-filmorate/models"
@@ -13,17 +14,6 @@ import (
 	"strings"
 	"time"
 )
-
-type User struct {
-	ID       int              `json:"id"`
-	Email    string           `json:"email" validate:"required,email"`
-	Login    string           `json:"login" validate:"required,isValidLogin"`
-	Name     string           `json:"name"`
-	Birthday utils.CustomTime `json:"birthday"`
-	Friends  []int            `json:"friends"`
-}
-
-var users = make(map[int]User)
 
 type UserStorage interface {
 	GetUsers(w http.ResponseWriter, r *http.Request)
@@ -36,25 +26,31 @@ type UserStorage interface {
 	DeleteFriendById(w http.ResponseWriter, r *http.Request)
 }
 
-func (u User) GetUsers(w http.ResponseWriter, r *http.Request) {
-	var userList []User
-	for _, user := range users {
+type InMemoryUserStorage struct {
+	models.User
+}
+
+var Users = make(map[int]InMemoryUserStorage)
+
+func (u InMemoryUserStorage) GetUsers(w http.ResponseWriter, r *http.Request) {
+	var userList []InMemoryUserStorage
+	for _, user := range Users {
 		userList = append(userList, user)
 	}
 	json.NewEncoder(w).Encode(userList)
 }
 
-func (u User) GetUserById(w http.ResponseWriter, r *http.Request) {
+func (u InMemoryUserStorage) GetUserById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		panic(err)
+		return
 	}
-	json.NewEncoder(w).Encode(users[userID])
+	json.NewEncoder(w).Encode(Users[userID])
 }
 
-func (u User) AddUsers(w http.ResponseWriter, r *http.Request) {
-	var user = User{}
+func (u InMemoryUserStorage) AddUsers(w http.ResponseWriter, r *http.Request) {
+	var user = InMemoryUserStorage{}
 
 	json.NewDecoder(r.Body).Decode(&user)
 
@@ -83,80 +79,79 @@ func (u User) AddUsers(w http.ResponseWriter, r *http.Request) {
 
 	user.ID = IncrementUserIDCounter()
 	user.Friends = []int{}
-	users[user.ID] = user
+	Users[user.ID] = user
 
 	json.NewEncoder(w).Encode(user)
 }
 
-func (u User) UpdateUsers(w http.ResponseWriter, r *http.Request) {
-	var user = User{}
+func (u InMemoryUserStorage) UpdateUsers(w http.ResponseWriter, r *http.Request) {
+	var user = InMemoryUserStorage{}
 
 	json.NewDecoder(r.Body).Decode(&user)
 
-	if err := checkUserByID(user, w); err != nil {
+	if err := CheckUserByID(user, w); err != nil {
 		return
 	}
 
-	users[user.ID] = user
+	Users[user.ID] = user
 	json.NewEncoder(w).Encode(user)
 }
 
-func (u User) GetFriendsByUserId(w http.ResponseWriter, r *http.Request) {
+func (u InMemoryUserStorage) GetFriendsByUserId(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	userId, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		panic(err)
+		return
 	}
 
-	user1 := users[userId]
+	user1 := Users[userId]
 
-	if checkUserByID(user1, w) != nil {
+	if CheckUserByID(user1, w) != nil {
 		return
 	}
 
 	userFriendIds := user1.Friends
-	userFriend := []User{}
+	userFriend := []InMemoryUserStorage{}
 	for _, elem := range userFriendIds {
-		userFriend = append(userFriend, users[elem])
+		userFriend = append(userFriend, Users[elem])
 	}
-	//user2 := users[userFriend]
+	//user2 := Users[userFriend]
 
 	log.Println("GetFriendByUserId | userFriend = ", userFriend)
 	json.NewEncoder(w).Encode(userFriend)
 }
 
-func (u User) GetCommonFriendId(w http.ResponseWriter, r *http.Request) {
+func (u InMemoryUserStorage) GetCommonFriendId(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userId, err := strconv.Atoi(vars["id"])
 
 	if err != nil {
-		panic(err)
+		return
 	}
 	userOther, err := strconv.Atoi(vars["friend_id"])
 
 	if err != nil {
-		panic(err)
-	}
-
-	user1 := users[userId]
-	user2 := users[userOther]
-
-	if checkUserByID(user1, w) != nil || checkUserByID(user2, w) != nil {
 		return
 	}
 
-	common := commonId(user1.Friends, user2.Friends)
-	userCommonFriend := []User{}
-	for _, elem := range common {
-		userCommonFriend = append(userCommonFriend, users[elem])
+	user1 := Users[userId]
+	user2 := Users[userOther]
+
+	if CheckUserByID(user1, w) != nil || CheckUserByID(user2, w) != nil {
+		return
 	}
-	//НАСРАЛ ЖИРНЮЩИЙ КОСТЫЛЬ
+
+	common := utils.CommonId(user1.Friends, user2.Friends)
+	userCommonFriend := []InMemoryUserStorage{}
+	for _, elem := range common {
+		userCommonFriend = append(userCommonFriend, Users[elem])
+	}
+
 	json.NewEncoder(w).Encode(userCommonFriend)
-	//json.NewEncoder(w).Encode(common)
 }
 
-func (u User) UpdateFriends(w http.ResponseWriter, r *http.Request) {
+func (u InMemoryUserStorage) UpdateFriends(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userId, err := strconv.Atoi(vars["id"])
 	if err != nil {
@@ -169,64 +164,69 @@ func (u User) UpdateFriends(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid friend ID", http.StatusBadRequest)
 		return
 	}
+	fmt.Printf("userId", &userId)
+	fmt.Printf("friendId", friendId)
 
-	user1 := users[userId]
-	user2 := users[friendId]
+	user1 := Users[userId]
+	user2 := Users[friendId]
 
-	if checkUserByID(user1, w) != nil || checkUserByID(user2, w) != nil {
+	fmt.Printf("user1", &user1)
+	fmt.Printf("user2", &user2)
+
+	if CheckUserByID(user1, w) != nil || CheckUserByID(user2, w) != nil {
 		return
 	}
 
-	if !Contains(user1.Friends, friendId) {
+	if !utils.Contains(user1.Friends, friendId) {
 		user1.Friends = append(user1.Friends, friendId)
-		users[userId] = user1
+		Users[userId] = user1
 	}
 
-	if !Contains(user2.Friends, userId) {
+	if !utils.Contains(user2.Friends, userId) {
 		user2.Friends = append(user2.Friends, userId)
-		users[friendId] = user2
+		Users[friendId] = user2
 	}
 
 	json.NewEncoder(w).Encode(user2)
 }
 
-func (u User) DeleteFriendById(w http.ResponseWriter, r *http.Request) {
+func (u InMemoryUserStorage) DeleteFriendById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userId, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		panic(err)
+		return
 	}
 
 	friendId, err := strconv.Atoi(vars["friend_id"])
 	if err != nil {
-		panic(err)
+		return
 	}
 
-	user1 := users[userId]
-	user2 := users[friendId]
+	user1 := Users[userId]
+	user2 := Users[friendId]
 
-	if checkUserByID(user1, w) != nil || checkUserByID(user2, w) != nil {
+	if CheckUserByID(user1, w) != nil || CheckUserByID(user2, w) != nil {
 		return
 	}
 
 	if (user1.Friends != nil) && len(user1.Friends) > 0 {
-		updatedFriends := Remove(user1.Friends, friendId)
-		//users[user1.ID].Friends = updatedFriends
+		updatedFriends := utils.Remove(user1.Friends, friendId)
+		//Users[user1.ID].Friends = updatedFriends
 		user1.Friends = updatedFriends
-		users[userId] = user1
+		Users[userId] = user1
 	}
 
 	if (user2.Friends != nil) && len(user2.Friends) > 0 {
-		updatedFriends := Remove(user2.Friends, userId)
+		updatedFriends := utils.Remove(user2.Friends, userId)
 		user2.Friends = updatedFriends
-		users[friendId] = user2
+		Users[friendId] = user2
 	}
 
 	json.NewEncoder(w).Encode(user1)
 }
 
 func IncrementUserIDCounter() int {
-	return len(users) + 1
+	return len(Users) + 1
 }
 
 func isValidLogin(fl validator.FieldLevel) bool {
@@ -240,7 +240,7 @@ func isValidLogin(fl validator.FieldLevel) bool {
 	return true
 }
 
-func validateBirthday(user *User, w http.ResponseWriter) error {
+func validateBirthday(user *InMemoryUserStorage, w http.ResponseWriter) error {
 	if user.Birthday.After(time.Now()) {
 		w.WriteHeader(http.StatusBadRequest)
 		responseError := models.ResponseError{}
@@ -252,8 +252,8 @@ func validateBirthday(user *User, w http.ResponseWriter) error {
 	return nil
 }
 
-func checkUserByID(user User, w http.ResponseWriter) error {
-	val, ok := users[user.ID]
+func CheckUserByID(user InMemoryUserStorage, w http.ResponseWriter) error {
+	val, ok := Users[user.ID]
 	if !ok {
 		log.Println("nil elem = ", val)
 		w.WriteHeader(http.StatusNotFound)
@@ -266,37 +266,37 @@ func checkUserByID(user User, w http.ResponseWriter) error {
 	return nil
 }
 
-func Contains(s []int, val int) bool {
-	for _, item := range s {
-		if item == val {
-			return true
-		}
-	}
-	return false
-}
+//func Contains(s []int, val int) bool {
+//	for _, item := range s {
+//		if item == val {
+//			return true
+//		}
+//	}
+//	return false
+//}
 
-func commonId(user1 []int, user2 []int) []int {
-	seen := make([]int, 1000)
-	for i := range user1 {
-		seen[user1[i]]++
-	}
-
-	res := make([]int, 0)
-	for i := range user2 {
-		if seen[user2[i]] > 0 {
-			res = append(res, user2[i])
-			seen[user2[i]] = 0
-		}
-	}
-	return res
-}
-
-func Remove(slice []int, s int) []int {
-	for i, num := range slice {
-		if num == s {
-			slice = append(slice[:i], slice[i+1:]...)
-			break
-		}
-	}
-	return slice
-}
+//func commonId(user1 []int, user2 []int) []int {
+//	seen := make([]int, 1000)
+//	for i := range user1 {
+//		seen[user1[i]]++
+//	}
+//
+//	res := make([]int, 0)
+//	for i := range user2 {
+//		if seen[user2[i]] > 0 {
+//			res = append(res, user2[i])
+//			seen[user2[i]] = 0
+//		}
+//	}
+//	return res
+//}
+//
+//func Remove(slice []int, s int) []int {
+//	for i, num := range slice {
+//		if num == s {
+//			slice = append(slice[:i], slice[i+1:]...)
+//			break
+//		}
+//	}
+//	return slice
+//}
