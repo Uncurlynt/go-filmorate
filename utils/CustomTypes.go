@@ -2,7 +2,6 @@ package utils
 
 import (
 	"encoding/json"
-	"log"
 	"time"
 )
 
@@ -27,7 +26,7 @@ func (t *CustomTime) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &timeStr); err != nil {
 		return err
 	}
-	log.Println("Unmarshalled time string:", timeStr)
+	//log.Println("Unmarshalled time string:", timeStr)
 	parsedTime, err := time.Parse("2006-01-02", timeStr)
 	if err != nil {
 		return err

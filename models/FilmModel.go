@@ -8,4 +8,5 @@ type Film struct {
 	Description string           `json:"description" validate:"required,lte=200"`
 	ReleaseDate utils.CustomTime `json:"releaseDate" validate:"required"`
 	Duration    int              `json:"duration" validate:"required,gt=0"`
+	Likes       []int            `json:"likes"`
 }
