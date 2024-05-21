@@ -1,6 +1,5 @@
 #  go-filmorate
 
-#Overview
 Filmorate is a web service designed to manage film information and user interactions. The service provides features for storing and retrieving films, managing user profiles, liking films, and maintaining friendships between users. It utilizes an in-memory storage mechanism for quick and efficient data access.
 
 ## Features
