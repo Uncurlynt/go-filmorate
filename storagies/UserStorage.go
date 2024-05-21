@@ -116,8 +116,6 @@ func (u InMemoryUserStorage) GetFriendsByUserId(w http.ResponseWriter, r *http.R
 	for _, elem := range userFriendIds {
 		userFriend = append(userFriend, Users[elem])
 	}
-	//user2 := Users[userFriend]
-
 	log.Println("GetFriendByUserId | userFriend = ", userFriend)
 	json.NewEncoder(w).Encode(userFriend)
 }
@@ -211,7 +209,6 @@ func (u InMemoryUserStorage) DeleteFriendById(w http.ResponseWriter, r *http.Req
 
 	if (user1.Friends != nil) && len(user1.Friends) > 0 {
 		updatedFriends := utils.Remove(user1.Friends, friendId)
-		//Users[user1.ID].Friends = updatedFriends
 		user1.Friends = updatedFriends
 		Users[userId] = user1
 	}
@@ -265,38 +262,3 @@ func CheckUserByID(user InMemoryUserStorage, w http.ResponseWriter) error {
 	}
 	return nil
 }
-
-//func Contains(s []int, val int) bool {
-//	for _, item := range s {
-//		if item == val {
-//			return true
-//		}
-//	}
-//	return false
-//}
-
-//func commonId(user1 []int, user2 []int) []int {
-//	seen := make([]int, 1000)
-//	for i := range user1 {
-//		seen[user1[i]]++
-//	}
-//
-//	res := make([]int, 0)
-//	for i := range user2 {
-//		if seen[user2[i]] > 0 {
-//			res = append(res, user2[i])
-//			seen[user2[i]] = 0
-//		}
-//	}
-//	return res
-//}
-//
-//func Remove(slice []int, s int) []int {
-//	for i, num := range slice {
-//		if num == s {
-//			slice = append(slice[:i], slice[i+1:]...)
-//			break
-//		}
-//	}
-//	return slice
-//}
