@@ -15,7 +15,6 @@ import (
 )
 
 type FilmStorage interface {
-	//CRUD
 	GetFilms(w http.ResponseWriter, r *http.Request)
 	GetFilmById(w http.ResponseWriter, r *http.Request)
 	AddFilms(w http.ResponseWriter, r *http.Request)
