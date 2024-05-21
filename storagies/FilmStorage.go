@@ -23,8 +23,6 @@ type FilmStorage interface {
 	UpdateLikes(w http.ResponseWriter, r *http.Request)
 	DeleteLikes(w http.ResponseWriter, r *http.Request)
 	GetPopularFilms(w http.ResponseWriter, r *http.Request)
-	//сторадж взаимодействие с бд и памятью
-	//сервисный слой отвечает за бизнес логику
 }
 
 type InMemoryFilmStorage struct {
@@ -54,8 +52,6 @@ func (f InMemoryFilmStorage) GetFilmById(w http.ResponseWriter, r *http.Request)
 	}
 	log.Println("GetFilmById|Get film by Id = ", Films[filmId])
 	json.NewEncoder(w).Encode(Films[filmId])
-	//	json.NewEncoder(w).Encode(FilmStorage.GetFilmById(filmId))
-
 }
 
 func (f InMemoryFilmStorage) AddFilms(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +72,6 @@ func (f InMemoryFilmStorage) AddFilms(w http.ResponseWriter, r *http.Request) {
 
 func (f InMemoryFilmStorage) UpdateFilms(w http.ResponseWriter, r *http.Request) {
 	film := InMemoryFilmStorage{}
-	//log.Println("Update film by id = ", film.ID)
 	json.NewDecoder(r.Body).Decode(&film)
 
 	if validateStructure(&film, w) != nil {
@@ -169,8 +164,6 @@ func IncreaseCounterFilmId() int {
 
 func validateReleaseDate(film *InMemoryFilmStorage, w http.ResponseWriter) error {
 	minDate := time.Date(1895, 12, 28, 0, 0, 0, 0, time.UTC)
-	//log.Println("minDate :", minDate)
-	//log.Println("ReleaseDate after JSON decoding:", film.ReleaseDate)
 
 	if film.ReleaseDate.Before(minDate) {
 		w.WriteHeader(http.StatusBadRequest)
@@ -199,8 +192,6 @@ func validateStructure(film *InMemoryFilmStorage, w http.ResponseWriter) error {
 
 func CheckFilmByID(film InMemoryFilmStorage, w http.ResponseWriter) error {
 	val, ok := Films[film.ID]
-	//TODO
-	//val, ok := FilmStorage.GetFilmById(film.ID)
 	if !ok {
 		log.Println("nil elem = ", val)
 		w.WriteHeader(http.StatusNotFound)
